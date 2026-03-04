@@ -157,6 +157,7 @@ function initializeSoundClassifier() {
     
     // Options for the classifier
     const options = {
+        overlapFactor: 1,   // 🔥 más rápido
         probabilityThreshold: 0.75
     };
     
@@ -203,9 +204,19 @@ function initializeSoundClassifier() {
         function attemptToUseClassifier() {
             console.log('Attempting to use classifier:', soundClassifier);
             
-            // Check if classify method exists
-            if (soundClassifier && typeof soundClassifier.classify === 'function') {
-                console.log('Classifier has classify method, ready to use');
+            // For Teachable Machine models in ml5 v1.3.1, we need to check for classifyStart
+            // instead of classify
+            const hasClassifyStartMethod = soundClassifier &&
+                (typeof soundClassifier.classifyStart === 'function');
+            
+            // Also check for classify for backward compatibility
+            const hasClassifyMethod = soundClassifier &&
+                (typeof soundClassifier.classify === 'function');
+            
+            if (hasClassifyStartMethod || hasClassifyMethod) {
+                console.log('Classifier has classification method, ready to use');
+                console.log('Has classifyStart?', hasClassifyStartMethod);
+                console.log('Has classify?', hasClassifyMethod);
                 isClassifierReady = true;
                 
                 // Start classifying if microphone is already recording
@@ -213,8 +224,29 @@ function initializeSoundClassifier() {
                     startML5Classification();
                 }
             } else {
-                console.error('Classifier missing classify method');
-                console.log('Checking for ready property...');
+                console.error('Classifier missing classification methods');
+                console.log('Checking for classifyStart or classify...');
+                
+                // Log available methods for debugging
+                if (soundClassifier) {
+                    console.log('Available methods:');
+                    for (let key in soundClassifier) {
+                        if (typeof soundClassifier[key] === 'function') {
+                            console.log('  -', key);
+                        }
+                    }
+                    
+                    // Check prototype chain
+                    const proto = Object.getPrototypeOf(soundClassifier);
+                    if (proto) {
+                        console.log('Prototype methods:');
+                        for (let key in proto) {
+                            if (typeof proto[key] === 'function') {
+                                console.log('  -', key);
+                            }
+                        }
+                    }
+                }
                 
                 // Check if classifier has a ready promise
                 if (soundClassifier && soundClassifier.ready && typeof soundClassifier.ready.then === 'function') {
@@ -222,15 +254,21 @@ function initializeSoundClassifier() {
                     soundClassifier.ready
                         .then(() => {
                             console.log('Ready promise resolved');
-                            if (soundClassifier && typeof soundClassifier.classify === 'function') {
-                                console.log('Now classifier has classify method');
+                            // Check again for classification methods
+                            const hasClassifyStartNow = soundClassifier &&
+                                (typeof soundClassifier.classifyStart === 'function');
+                            const hasClassifyNow = soundClassifier &&
+                                (typeof soundClassifier.classify === 'function');
+                            
+                            if (hasClassifyStartNow || hasClassifyNow) {
+                                console.log('Now classifier has classification method');
                                 isClassifierReady = true;
                                 if (isRecording) {
                                     startML5Classification();
                                 }
                             } else {
-                                console.error('Still no classify method after ready promise');
-                                updateStatus(false, 'Model loaded but cannot classify. Using frequency-based detection.');
+                                console.error('Still no classification method after ready promise');
+                                updateStatus(false, 'Model loaded but classification API not found. Using frequency-based detection.');
                                 isClassifierReady = false;
                             }
                         })
@@ -240,7 +278,7 @@ function initializeSoundClassifier() {
                             isClassifierReady = false;
                         });
                 } else {
-                    console.error('No classify method and no ready promise');
+                    console.error('No classification method and no ready promise');
                     updateStatus(false, 'Model incompatible. Using frequency-based detection.');
                     isClassifierReady = false;
                 }
@@ -390,30 +428,66 @@ function detectVowelFromFrequency(frequency) {
 function startML5Classification() {
     if (!soundClassifier || !isClassifierReady) return;
     
-    // The sound model will continuously listen to the microphone
-    soundClassifier.classify((error, results) => {
-        if (error) {
-            console.error('Classification error:', error);
-            return;
-        }
-        
-        if (results && results[0]) {
-            const label = results[0].label;
-            const confidence = results[0].confidence * 100;
-            
-            // Check if it's a vowel (handle Spanish "Ruido de fondo")
-            if (vowels.includes(label.toUpperCase())) {
-                currentVowel = label.toUpperCase();
-                currentConfidence = confidence;
-                updateVowelDisplay(currentVowel, currentConfidence);
-            } else if (label === 'Ruido de fondo' || label === 'Background Noise') {
-                // Reset display for background noise
-                currentVowel = '--';
-                currentConfidence = 0;
-                updateVowelDisplay(currentVowel, currentConfidence);
+    console.log('Starting ML5 classification...');
+    
+    // Check which method is available
+    if (typeof soundClassifier.classifyStart === 'function') {
+        console.log('Using classifyStart() method (Teachable Machine model)');
+        // classifyStart receives results directly, not (error, results)
+        soundClassifier.classifyStart((results) => {
+            if (results && results[0]) {
+                const label = results[0].label;
+                const confidence = results[0].confidence * 100;
+                processClassificationResult(label, confidence);
             }
-        }
-    });
+        });
+    } else if (typeof soundClassifier.classify === 'function') {
+        console.log('Using classify() method (pre-trained model)');
+        // classify receives (error, results)
+        soundClassifier.classify((error, results) => {
+            if (error) {
+                console.error('Classification error:', error);
+                return;
+            }
+            
+            if (results && results[0]) {
+                const label = results[0].label;
+                const confidence = results[0].confidence * 100;
+                processClassificationResult(label, confidence);
+            }
+        });
+    } else {
+        console.error('No classification method available');
+    }
+}
+
+// Process classification result
+function processClassificationResult(label, confidence) {
+    // Check if it's a vowel (handle Spanish "Ruido de fondo")
+    if (vowels.includes(label.toUpperCase())) {
+        currentVowel = label.toUpperCase();
+        currentConfidence = confidence;
+        updateVowelDisplay(currentVowel, currentConfidence);
+    } else if (label === 'Ruido de fondo' || label === 'Background Noise') {
+        // Reset display for background noise
+        currentVowel = '--';
+        currentConfidence = 0;
+        updateVowelDisplay(currentVowel, currentConfidence);
+    }
+}
+
+// Stop ML5 classification
+function stopML5Classification() {
+    if (!soundClassifier) return;
+    
+    // Check which stop method is available
+    if (typeof soundClassifier.classifyStop === 'function') {
+        console.log('Stopping classification with classifyStop()');
+        soundClassifier.classifyStop();
+    } else if (soundClassifier.stop && typeof soundClassifier.stop === 'function') {
+        console.log('Stopping classification with stop()');
+        soundClassifier.stop();
+    }
 }
 
 // Update vowel display
@@ -549,6 +623,9 @@ function stopMicrophone() {
         audioContext = null;
     }
 
+    // Stop ML5 classification if active
+    stopML5Classification();
+    
     // Reset classifier
     soundClassifier = null;
     isClassifierReady = false;
