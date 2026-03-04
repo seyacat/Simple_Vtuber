@@ -46,8 +46,8 @@ async function main() {
     const label = config.labels[labelIndex];
     
     // Get number of samples
-    const countStr = await askQuestion(`How many samples to record for "${label}"? (default: 20): `);
-    const count = countStr.trim() ? parseInt(countStr) : 20;
+    const countStr = await askQuestion(`How many samples to record for "${label}"? (default: 10): `);
+    const count = countStr.trim() ? parseInt(countStr) : 10;
     
     if (isNaN(count) || count <= 0) {
       console.error('Invalid count');
@@ -95,17 +95,14 @@ async function main() {
     console.log('\nStarting batch recording...');
     console.log('Press Ctrl+C at any time to cancel.\n');
     
-    // Record each sample
+    // Record each sample immediately without pauses
     for (let i = 0; i < count; i++) {
       const currentIndex = startIndex + i;
       
       console.log(`\n[${i + 1}/${count}] Recording sample ${currentIndex} for "${label}"...`);
-      console.log('Get ready to speak in 3 seconds...');
+      console.log('Recording immediately...');
       
-      // Countdown
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Execute recording command
+      // Execute recording command immediately
       const command = `node "${path.join(__dirname, 'record.js')}" --label "${label}" --index "${currentIndex}" --duration "${duration}"`;
       
       await new Promise((resolve, reject) => {
@@ -120,11 +117,7 @@ async function main() {
         });
       });
       
-      // Short pause between recordings
-      if (i < count - 1) {
-        console.log('Next recording in 2 seconds...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+      // No pause between recordings
     }
     
     console.log('\n' + '='.repeat(60));
