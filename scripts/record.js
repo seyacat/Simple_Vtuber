@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const record = require('node-record-lpcm16');
+const portAudio = require('naudiodon');
 const fs = require('fs');
 const path = require('path');
 const wav = require('wav-encoder');
@@ -65,24 +65,55 @@ console.log('Press Ctrl+C to stop recording early');
 // Audio configuration
 const sampleRate = 16000;
 const channels = 1;
+const bytesPerSample = 2; // 16-bit = 2 bytes
+
+// Calculate total bytes needed for requested duration
+// duration is in milliseconds, convert to seconds: duration/1000
+const samplesNeeded = Math.floor(sampleRate * (duration / 1000));
+const bytesNeeded = samplesNeeded * channels * bytesPerSample;
 
 // Collect audio data
 const audioData = [];
+let totalBytes = 0;
 let isRecording = true;
 
-// Start recording
-const recording = record.record({
-  sampleRate: sampleRate,
-  threshold: 0,
-  verbose: false,
-  recordProgram: 'sox' // Use SoX for recording
+// Create audio input stream with naudiodon
+const ai = new portAudio.AudioIO({
+  inOptions: {
+    channelCount: channels,
+    sampleFormat: portAudio.SampleFormat16Bit,
+    sampleRate: sampleRate,
+    deviceId: -1, // Use default device
+    closeOnError: true
+  }
 });
 
 // Handle recording stream
-recording.stream()
+ai
   .on('data', (chunk) => {
-    if (isRecording) {
-      audioData.push(chunk);
+    if (!isRecording) return;
+    
+    audioData.push(chunk);
+    totalBytes += chunk.length;
+    
+    // Check if we have enough data
+    if (totalBytes >= bytesNeeded) {
+      isRecording = false;
+      ai.quit();
+      
+      // Trim excess data if we got more than needed
+      if (totalBytes > bytesNeeded) {
+        const excessBytes = totalBytes - bytesNeeded;
+        const lastChunk = audioData[audioData.length - 1];
+        if (lastChunk.length > excessBytes) {
+          // Trim the last chunk
+          audioData[audioData.length - 1] = lastChunk.slice(0, lastChunk.length - excessBytes);
+          totalBytes = bytesNeeded;
+        }
+      }
+      
+      // Convert collected data to WAV
+      saveAsWav(audioData, sampleRate, channels, outputFile);
     }
   })
   .on('error', (err) => {
@@ -90,20 +121,31 @@ recording.stream()
     process.exit(1);
   });
 
-// Stop recording after specified duration
+// Start recording
+ai.start();
+console.log('Recording started...');
+
+// Safety timeout - stop recording if something goes wrong
 setTimeout(() => {
-  isRecording = false;
-  recording.stop();
-  
-  // Convert collected data to WAV
-  saveAsWav(audioData, sampleRate, channels, outputFile);
-}, duration);
+  if (isRecording) {
+    console.log('Safety timeout reached, stopping recording');
+    isRecording = false;
+    ai.quit();
+    
+    if (audioData.length > 0) {
+      saveAsWav(audioData, sampleRate, channels, outputFile);
+    } else {
+      console.log('No audio data recorded');
+      process.exit(0);
+    }
+  }
+}, duration + 2000); // Add 2 seconds buffer
 
 // Handle manual interruption
 process.on('SIGINT', () => {
   console.log('\nRecording stopped by user');
   isRecording = false;
-  recording.stop();
+  ai.quit();
   
   if (audioData.length > 0) {
     saveAsWav(audioData, sampleRate, channels, outputFile);
