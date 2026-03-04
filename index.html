@@ -6,6 +6,9 @@
     <title>Microphone Waveform Visualizer</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script>
+    <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -59,24 +62,28 @@
                     <p id="frequencyValue">0 Hz</p>
                 </div>
                 <div class="info-box">
-                    <h3>Sample Rate</h3>
-                    <p id="sampleRate">-- Hz</p>
+                    <h3>Vowel Detection</h3>
+                    <p id="vowelDetection">--</p>
                 </div>
                 <div class="info-box">
-                    <h3>Buffer Size</h3>
-                    <p id="bufferSize">--</p>
+                    <h3>Confidence</h3>
+                    <p id="vowelConfidence">--%</p>
                 </div>
             </div>
 
             <div class="instructions">
                 <h3>How to use:</h3>
                 <ul>
-                    <li>Select your microphone from the dropdown menu</li>
-                    <li>Click "Start Microphone" to begin capturing audio</li>
-                    <li>Speak, sing, or make sounds to see the real-time waveform</li>
+                    <li>Select your microphone from the dropdown menu (optional)</li>
+                    <li>The microphone starts automatically after loading</li>
+                    <li>Speak vowels (A, E, I, O, U) to see real-time vowel detection</li>
+                    <li>The system uses a machine learning model trained with Teachable Machine</li>
                     <li>The visualization shows amplitude over time (time-domain)</li>
                     <li>Volume level shows the current audio intensity</li>
+                    <li>Vowel detection shows which vowel is being spoken</li>
+                    <li>Confidence shows how sure the system is about the detection</li>
                     <li>Click "Stop Microphone" to end the audio capture</li>
+                    <li>Click "Start Microphone" to restart if needed</li>
                     <li>Your browser will ask for microphone permission - please allow it</li>
                     <li>If your microphone doesn't appear, click "Start Microphone" to refresh the device list</li>
                     <li>The microphone continues recording even when the tab is in the background</li>
