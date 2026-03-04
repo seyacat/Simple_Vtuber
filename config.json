@@ -1,0 +1,26 @@
+{
+  "audio": {
+    "sampleRate": 16000,
+    "duration": 0.6,
+    "channels": 1,
+    "threshold": 0
+  },
+  "features": {
+    "mfccCoefficients": 40,
+    "bufferSize": 1024,
+    "hopLength": 512,
+    "windowFunction": "hann"
+  },
+  "training": {
+    "epochs": 40,
+    "batchSize": 32,
+    "validationSplit": 0.2,
+    "learningRate": 0.001,
+    "earlyStoppingPatience": 10
+  },
+  "labels": ["A", "E", "I", "O", "U", "noise"],
+  "model": {
+    "inputShape": [43, 232, 1],
+    "outputClasses": 6
+  }
+}
