@@ -161,45 +161,90 @@ function initializeSoundClassifier() {
     };
     
     // Load the model
-    // ml5.soundClassifier supports both callback and promise
-    // We'll use promise syntax for better error handling
+    // Try the simplest approach based on ml5.js examples
     try {
         console.log('Creating sound classifier...');
         
-        // ml5.soundClassifier with callback
-        soundClassifier = ml5.soundClassifier(soundModel, options, (error) => {
-            if (error) {
-                console.error('Error in sound classifier callback:', error);
-                console.error('Error details:', error.message, error.stack);
-                
-                // Try to diagnose the issue
-                diagnoseModelLoadingError(error);
-                
-                updateStatus(false, 'Error loading vowel detection model. Using frequency-based detection.');
-                isClassifierReady = false;
-            } else {
-                console.log('Sound classifier callback fired successfully');
-                handleClassifierReady();
-            }
-        });
+        // Create sound classifier - follow ml5.js example pattern
+        // Some ml5 versions return a Promise, others return classifier directly
+        soundClassifier = ml5.soundClassifier(soundModel, options);
         
-        // Also check if classifier was created (ml5 might create it synchronously)
-        console.log('Sound classifier object created:', soundClassifier);
+        console.log('Sound classifier returned:', soundClassifier);
         
-        // Some ml5 versions might support promise-based loading
-        // Try alternative approach if available
-        if (soundClassifier && soundClassifier.ready) {
-            console.log('Classifier has ready promise, waiting for it...');
-            soundClassifier.ready
-                .then(() => {
-                    console.log('Classifier ready promise resolved');
-                    handleClassifierReady();
+        // Check what was returned
+        if (!soundClassifier) {
+            console.error('soundClassifier returned null/undefined');
+            updateStatus(false, 'Failed to create sound classifier. Using frequency-based detection.');
+            isClassifierReady = false;
+            return;
+        }
+        
+        // If it's a Promise, wait for it
+        if (soundClassifier.then && typeof soundClassifier.then === 'function') {
+            console.log('soundClassifier returned a Promise, waiting...');
+            soundClassifier
+                .then((classifier) => {
+                    console.log('Promise resolved with classifier:', classifier);
+                    soundClassifier = classifier;
+                    // Now try to use it
+                    attemptToUseClassifier();
                 })
                 .catch(err => {
-                    console.error('Classifier ready promise rejected:', err);
-                    updateStatus(false, 'Model failed to initialize. Using frequency-based detection.');
+                    console.error('Promise rejected:', err);
+                    updateStatus(false, 'Model failed to load. Using frequency-based detection.');
                     isClassifierReady = false;
                 });
+        } else {
+            // Assume it's the classifier object
+            console.log('soundClassifier returned object (not Promise)');
+            attemptToUseClassifier();
+        }
+        
+        function attemptToUseClassifier() {
+            console.log('Attempting to use classifier:', soundClassifier);
+            
+            // Check if classify method exists
+            if (soundClassifier && typeof soundClassifier.classify === 'function') {
+                console.log('Classifier has classify method, ready to use');
+                isClassifierReady = true;
+                
+                // Start classifying if microphone is already recording
+                if (isRecording) {
+                    startML5Classification();
+                }
+            } else {
+                console.error('Classifier missing classify method');
+                console.log('Checking for ready property...');
+                
+                // Check if classifier has a ready promise
+                if (soundClassifier && soundClassifier.ready && typeof soundClassifier.ready.then === 'function') {
+                    console.log('Classifier has ready promise, waiting...');
+                    soundClassifier.ready
+                        .then(() => {
+                            console.log('Ready promise resolved');
+                            if (soundClassifier && typeof soundClassifier.classify === 'function') {
+                                console.log('Now classifier has classify method');
+                                isClassifierReady = true;
+                                if (isRecording) {
+                                    startML5Classification();
+                                }
+                            } else {
+                                console.error('Still no classify method after ready promise');
+                                updateStatus(false, 'Model loaded but cannot classify. Using frequency-based detection.');
+                                isClassifierReady = false;
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Ready promise rejected:', err);
+                            updateStatus(false, 'Model failed to initialize. Using frequency-based detection.');
+                            isClassifierReady = false;
+                        });
+                } else {
+                    console.error('No classify method and no ready promise');
+                    updateStatus(false, 'Model incompatible. Using frequency-based detection.');
+                    isClassifierReady = false;
+                }
+            }
         }
         
     } catch (error) {
@@ -208,39 +253,6 @@ function initializeSoundClassifier() {
         isClassifierReady = false;
     }
     
-    // Helper function to handle when classifier is ready
-    function handleClassifierReady() {
-        console.log('Handling classifier ready state');
-        console.log('Classifier object:', soundClassifier);
-        
-        // Verify the classifier has the classify method
-        if (soundClassifier && typeof soundClassifier.classify === 'function') {
-            console.log('Classifier has classify method - ready to use');
-            isClassifierReady = true;
-            
-            // Start classifying if microphone is already recording
-            if (isRecording) {
-                startML5Classification();
-            }
-        } else {
-            console.error('Classifier missing classify method');
-            console.log('Available methods:', Object.keys(soundClassifier || {}));
-            updateStatus(false, 'Model loaded but classification not available. Using frequency-based detection.');
-            isClassifierReady = false;
-            
-            // Try to fix by waiting a bit and checking again
-            // (sometimes methods are added asynchronously)
-            setTimeout(() => {
-                if (soundClassifier && typeof soundClassifier.classify === 'function') {
-                    console.log('Classifier now has classify method after delay');
-                    isClassifierReady = true;
-                    if (isRecording) {
-                        startML5Classification();
-                    }
-                }
-            }, 1000);
-        }
-    }
 }
 
 // Helper function to diagnose model loading errors
