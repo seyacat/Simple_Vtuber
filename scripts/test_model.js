@@ -2,12 +2,13 @@
 
 const fs = require('fs-extra');
 const path = require('path');
-const tf = require('@tensorflow/tfjs-node');
+const tf = require('@tensorflow/tfjs');
 
 const config = require('../config.json');
 const utils = require('./utils');
 
-console.log('Starting model testing...');
+async function main() {
+  console.log('Starting model testing...');
 
 // Check if model exists
 const modelDir = path.join(__dirname, '..', 'trained');
@@ -29,7 +30,7 @@ if (!fs.existsSync(featuresPath)) {
 
 // Load model
 console.log(`Loading model from ${modelDir}...`);
-const model = await tf.loadLayersModel(`file://${modelJsonPath}`);
+const model = await loadModelFromDirectory(modelDir);
 console.log('Model loaded successfully');
 
 // Load features
@@ -229,6 +230,60 @@ if (accuracy < 85) {
 } else {
   console.log('🎉 Excellent accuracy! Model is ready for production.');
 }
+}
+
+/**
+ * Load model from directory (custom loader for Node.js)
+ */
+async function loadModelFromDirectory(modelDir) {
+  const modelJsonPath = path.join(modelDir, 'model.json');
+  
+  if (!fs.existsSync(modelJsonPath)) {
+    throw new Error(`Model JSON not found: ${modelJsonPath}`);
+  }
+  
+  // Read model JSON
+  const modelJSON = fs.readJsonSync(modelJsonPath);
+  
+  // Load weights
+  const weightsManifest = modelJSON.weightsManifest[0];
+  const weightsBinPath = path.join(modelDir, weightsManifest.paths[0]);
+  
+  if (!fs.existsSync(weightsBinPath)) {
+    throw new Error(`Weights file not found: ${weightsBinPath}`);
+  }
+  
+  // Read weights binary file
+  const weightsBuffer = fs.readFileSync(weightsBinPath);
+  const weightsArray = new Uint8Array(weightsBuffer);
+  
+  // Create weight tensors
+  const weightTensors = [];
+  let offset = 0;
+  
+  for (const weightSpec of weightsManifest.weights) {
+    const size = weightSpec.shape.reduce((a, b) => a * b, 1);
+    const bytes = size * 4; // float32 = 4 bytes
+    
+    // Extract slice from weights array
+    const weightSlice = weightsArray.slice(offset, offset + bytes);
+    const floatArray = new Float32Array(weightSlice.buffer, weightSlice.byteOffset, size);
+    
+    // Create tensor
+    const tensor = tf.tensor(floatArray, weightSpec.shape);
+    weightTensors.push(tensor);
+    
+    offset += bytes;
+  }
+  
+  // Load model topology
+  const model = await tf.models.modelFromJSON(modelJSON.modelTopology);
+  
+  // Set weights
+  model.setWeights(weightTensors);
+  
+  return model;
+}
 
 /**
  * Reshape 1D array to 2D array
@@ -253,3 +308,9 @@ function padOrTruncate(array, targetLength) {
     return array.slice(0, targetLength);
   }
 }
+
+// Execute main function and handle errors
+main().catch(error => {
+  console.error('Model testing failed:', error);
+  process.exit(1);
+});

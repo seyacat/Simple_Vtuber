@@ -2,12 +2,13 @@
 
 const fs = require('fs-extra');
 const path = require('path');
-const tf = require('@tensorflow/tfjs-node');
+const tf = require('@tensorflow/tfjs');
 
 const config = require('../config.json');
 const utils = require('./utils');
 
-console.log('Starting model training...');
+async function main() {
+  console.log('Starting model training...');
 console.log(`Model input shape: ${config.model.inputShape.join('x')}`);
 console.log(`Output classes: ${config.model.outputClasses}`);
 console.log(`Labels: ${config.labels.join(', ')}`);
@@ -57,10 +58,11 @@ if (features[0].length === totalElements) {
 
 // Convert to tensors
 console.log('Converting data to tensors...');
+// Create 3D tensor and expand to 4D with channels dimension
 const featuresTensor = tf.tensor3d(
   reshapedFeatures,
   [features.length, height, width]
-);
+).expandDims(-1); // Add channels dimension at the end
 
 const labelsTensor = tf.oneHot(
   tf.tensor1d(labels, 'int32'),
@@ -87,13 +89,8 @@ const callbacks = [
   tf.callbacks.earlyStopping({
     monitor: 'val_loss',
     patience: config.training.earlyStoppingPatience,
-    restoreBestWeights: true
-  }),
-  {
-    onEpochEnd: (epoch, logs) => {
-      console.log(`Epoch ${epoch + 1}/${config.training.epochs} - loss: ${logs.loss.toFixed(4)}, accuracy: ${logs.acc.toFixed(4)}, val_loss: ${logs.val_loss.toFixed(4)}, val_acc: ${logs.val_acc.toFixed(4)}`);
-    }
-  }
+    restoreBestWeights: false
+  })
 ];
 
 // Train model
@@ -105,15 +102,16 @@ const history = await model.fit(featuresTensor, labelsTensor, {
   batchSize: config.training.batchSize,
   validationSplit: config.training.validationSplit,
   callbacks: callbacks,
-  verbose: 0
+  verbose: 1
 });
 
 // Save model
 console.log('\nSaving model...');
 const modelSavePath = path.join(__dirname, '..', 'trained');
-const modelURL = `file://${modelSavePath}`;
+fs.ensureDirSync(modelSavePath);
 
-await model.save(modelURL);
+// Save model using custom save handler for Node.js
+await saveModel(model, modelSavePath);
 
 console.log(`Model saved to ${modelSavePath}`);
 
@@ -148,6 +146,73 @@ console.log('\nTraining completed successfully!');
 console.log('\nNext steps:');
 console.log('1. Test the model: node scripts/test_model.js');
 console.log('2. Update web app to use the new model');
+}
+
+/**
+ * Save model manually for Node.js environment in TensorFlow.js format
+ */
+async function saveModel(model, savePath) {
+  console.log('Saving model architecture and weights...');
+  
+  // Get model topology and weights
+  const modelJSON = model.toJSON();
+  const weights = await model.getWeights();
+  
+  // Create weights manifest
+  const weightSpecs = [];
+  const weightData = [];
+  
+  for (let i = 0; i < weights.length; i++) {
+    const weight = weights[i];
+    const data = weight.dataSync();
+    
+    weightSpecs.push({
+      name: `weight_${i}`,
+      shape: weight.shape,
+      dtype: 'float32'
+    });
+    
+    // Convert Float32Array to ArrayBuffer
+    const buffer = data.buffer.slice(
+      data.byteOffset,
+      data.byteOffset + data.byteLength
+    );
+    weightData.push(new Uint8Array(buffer));
+  }
+  
+  // Concatenate all weight data into a single buffer
+  let totalLength = 0;
+  for (const arr of weightData) {
+    totalLength += arr.length;
+  }
+  
+  const combinedWeights = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of weightData) {
+    combinedWeights.set(arr, offset);
+    offset += arr.length;
+  }
+  
+  // Save weights.bin file
+  const weightsBinPath = path.join(savePath, 'weights.bin');
+  fs.writeFileSync(weightsBinPath, Buffer.from(combinedWeights));
+  
+  // Create and save model.json with weights manifest
+  const tfjsModelJSON = {
+    modelTopology: modelJSON,
+    weightsManifest: [{
+      paths: ['./weights.bin'],
+      weights: weightSpecs
+    }]
+  };
+  
+  const modelJSONPath = path.join(savePath, 'model.json');
+  fs.writeJsonSync(modelJSONPath, tfjsModelJSON, { spaces: 2 });
+  
+  console.log('Model saved in TensorFlow.js format at:', savePath);
+  console.log(`- ${modelJSONPath}`);
+  console.log(`- ${weightsBinPath} (${combinedWeights.length} bytes)`);
+}
 
 /**
  * Create CNN model for vowel recognition
@@ -233,3 +298,9 @@ function padOrTruncate(array, targetLength) {
     return array.slice(0, targetLength);
   }
 }
+
+// Execute main function and handle errors
+main().catch(error => {
+  console.error('Model training failed:', error);
+  process.exit(1);
+});
