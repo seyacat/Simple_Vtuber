@@ -1,0 +1,73 @@
+# Dockerfile completo para extracción de características y entrenamiento
+# Incluye Node.js para extracción y Python para entrenamiento rápido
+
+FROM node:18-bullseye as node-builder
+
+# Instalar dependencias del sistema para audio
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copiar package.json e instalar dependencias Node.js
+COPY package*.json ./
+RUN npm install
+
+# Copiar scripts de Node.js
+COPY scripts/ ./scripts/
+COPY config.json ./
+
+# Etapa para Python/TensorFlow GPU
+FROM tensorflow/tensorflow:latest-gpu
+
+WORKDIR /app
+
+# Instalar Node.js en la imagen de TensorFlow
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    python3-pip \
+    python3-dev \
+    wget \
+    curl \
+    git \
+    libsndfile1 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar Node.js dependencies desde la primera etapa
+COPY --from=node-builder /app/node_modules ./node_modules
+COPY --from=node-builder /app/package*.json ./
+COPY --from=node-builder /app/scripts ./scripts
+COPY --from=node-builder /app/config.json ./
+
+# Instalar dependencias Python
+COPY requirements.txt .
+RUN pip3 install --upgrade pip
+RUN pip3 install -r requirements.txt
+
+# Instalar dependencias adicionales para audio processing
+RUN pip3 install librosa soundfile numpy scipy
+
+# Copiar el resto de la aplicación
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p /app/logs/tensorboard
+RUN mkdir -p /app/dataset/numpy
+RUN mkdir -p /app/trained_python_fast
+
+# Variables de entorno para optimización
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
+ENV TF_CPP_MIN_LOG_LEVEL=3
+ENV CUDA_VISIBLE_DEVICES=0
+ENV NODE_ENV=production
+
+# Script de entrada
+COPY docker_entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker_entrypoint.sh
+
+ENTRYPOINT ["docker_entrypoint.sh"]

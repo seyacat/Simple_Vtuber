@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Servicio completo con GPU para pipeline completo
+  pipeline-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.complete
+    container_name: simple-vtuber-pipeline-gpu
+    runtime: nvidia  # Requiere NVIDIA Container Toolkit
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./trained_python_fast:/app/trained_python_fast
+      - ./dataset:/app/dataset
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - TF_CPP_MIN_LOG_LEVEL=3
+    ports:
+      - "6006:6006"  # TensorBoard
+    command: pipeline fast  # Pipeline completo con modelo fast
+    
+  # Pipeline con modelo lightning (máxima velocidad)
+  pipeline-lightning:
+    build:
+      context: .
+      dockerfile: Dockerfile.complete
+    container_name: simple-vtuber-pipeline-lightning
+    runtime: nvidia
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./trained_python_fast:/app/trained_python_fast
+      - ./dataset:/app/dataset
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - TF_CPP_MIN_LOG_LEVEL=3
+    command: pipeline lightning  # Pipeline completo con modelo lightning
+    
+  # Solo extracción de características
+  extract-features:
+    build:
+      context: .
+      dockerfile: Dockerfile.complete
+    container_name: simple-vtuber-extract
+    volumes:
+      - .:/app
+      - ./dataset:/app/dataset
+    command: extract  # Solo extraer características
+    
+  # Solo entrenamiento (asume características ya extraídas)
+  train-only:
+    build:
+      context: .
+      dockerfile: Dockerfile.complete
+    container_name: simple-vtuber-train-only
+    runtime: nvidia
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./trained_python_fast:/app/trained_python_fast
+      - ./dataset:/app/dataset
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+    command: train fast  # Solo entrenar con modelo fast
+    
+  # TensorBoard para monitoreo
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: simple-vtuber-tensorboard
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./logs:/logs
+    command: tensorboard --logdir /logs --host 0.0.0.0
+
+  # Conversión a TensorFlow.js para web
+  convert-tfjs:
+    build:
+      context: .
+      dockerfile: Dockerfile.complete
+    container_name: simple-vtuber-convert-tfjs
+    volumes:
+      - .:/app
+      - ./trained_python_fast:/app/trained_python_fast
+      - ./trained_web:/app/trained_web
+    command: python convert_to_tfjs.py --input /app/trained_python_fast/model.h5 --output /app/trained_web/tfjs_model
+
+volumes:
+  trained_models:
+  logs:
+  trained_web:
