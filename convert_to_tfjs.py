@@ -141,8 +141,8 @@ def convert_h5_to_tfjs(input_h5_path, output_dir):
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description='Convertir modelo Keras H5 a TensorFlow.js')
-    parser.add_argument('--input', '-i', required=True, help='Ruta al archivo model.h5')
+    parser = argparse.ArgumentParser(description='Convertir modelo Keras (.keras o .h5) a TensorFlow.js')
+    parser.add_argument('--input', '-i', required=True, help='Ruta al archivo model.keras o model.h5')
     parser.add_argument('--output', '-o', required=True, help='Directorio de salida')
     
     args = parser.parse_args()
@@ -173,7 +173,7 @@ def main():
         print("Sugerencias:")
         print("1. Verificar que tensorflowjs esté instalado")
         print("2. Verificar compatibilidad de versiones")
-        print("3. Intentar manualmente: tensorflowjs_converter --input_format=keras model.h5 output_dir/")
+        print("3. Intentar manualmente: tensorflowjs_converter --input_format=keras model.keras output_dir/")
         sys.exit(1)
 
 if __name__ == "__main__":

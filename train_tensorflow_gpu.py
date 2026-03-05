@@ -255,7 +255,7 @@ def train_model(config, use_fast_model=True):
     os.makedirs(save_dir, exist_ok=True)
     
     # Save in multiple formats
-    model.save(os.path.join(save_dir, 'model.h5'))
+    model.save(os.path.join(save_dir, 'model.keras'))
     model.save(os.path.join(save_dir, 'saved_model'))
     
     # Save TensorFlow.js format (with error handling)
@@ -284,7 +284,7 @@ def train_model(config, use_fast_model=True):
     
     print(f"\nModel saved to: {save_dir}")
     print("Formats saved:")
-    print("  - model.h5 (Keras format)")
+    print("  - model.keras (Keras native format)")
     print("  - saved_model/ (TensorFlow SavedModel)")
     print(f"  - training_history.json")
     
