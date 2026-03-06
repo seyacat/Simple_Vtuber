@@ -140,8 +140,8 @@ async function initializeTensorFlowModel() {
         return;
     }
     
-    // Use local model from trained folder
-    const modelPath = './trained/model.json';
+    // Use local model from trained_web/tfjs_model folder
+    const modelPath = './trained_web/tfjs_model/model.json';
     
     console.log('Loading TensorFlow.js model from:', modelPath);
     
