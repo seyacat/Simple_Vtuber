@@ -108,10 +108,17 @@ def convert_h5_to_tfjs(input_h5_path, output_dir):
         return False
     
     try:
+        # Deshabilitar mixed_float16 policy temporalmente para evitar errores de GPU
+        original_policy = tf.keras.mixed_precision.global_policy()
+        tf.keras.mixed_precision.set_global_policy('float32')
+        
         # Cargar modelo
         print(f"Cargando modelo desde: {input_h5_path}")
         model = tf.keras.models.load_model(input_h5_path)
         print(f"✓ Modelo cargado: {model.input_shape} -> {model.output_shape}")
+        
+        # Restaurar política original
+        tf.keras.mixed_precision.set_global_policy(original_policy)
         
         # Convertir a TensorFlow.js
         print(f"Convirtiendo a TensorFlow.js en: {output_dir}")

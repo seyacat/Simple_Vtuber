@@ -204,8 +204,8 @@ function testModelFileAccessibility(modelPath) {
             console.error('Model accessibility test failed:', error);
         });
     
-    // Test if weights are accessible
-    const weightsPath = modelPath.replace('model.json', 'weights.bin');
+    // Test if weights are accessible (TensorFlow.js models use group1-shard1of1.bin)
+    const weightsPath = modelPath.replace('model.json', 'group1-shard1of1.bin');
     fetch(weightsPath)
         .then(response => {
             console.log('Weights fetch status:', response.status, response.statusText);
@@ -213,6 +213,13 @@ function testModelFileAccessibility(modelPath) {
                 console.log('Weights file accessible');
             } else {
                 console.warn('Weights file may not be accessible:', response.status);
+                // Also try the old weights.bin name for backward compatibility
+                const oldWeightsPath = modelPath.replace('model.json', 'weights.bin');
+                fetch(oldWeightsPath)
+                    .then(response2 => {
+                        console.log('Alternative weights fetch status:', response2.status, response2.statusText);
+                    })
+                    .catch(() => {});
             }
         })
         .catch(error => {
@@ -227,7 +234,7 @@ function extractMFCCFeatures(audioBuffer, sampleRate = 16000) {
     
     const bufferSize = 1024;
     const hopSize = 512;
-    const mfccCoefficients = 40;
+    const mfccCoefficients = 20;
     
     // For now, return dummy features matching the expected shape
     // In a real implementation, you would:
@@ -248,10 +255,10 @@ function extractMFCCFeatures(audioBuffer, sampleRate = 16000) {
         features.push(frame);
     }
     
-    // Reshape to match model input (43x232)
+    // Reshape to match model input (20x20)
     // Pad or truncate as needed
-    const targetRows = 43;
-    const targetCols = 232;
+    const targetRows = 20;
+    const targetCols = 20;
     
     let reshaped = [];
     for (let i = 0; i < targetRows; i++) {
@@ -298,7 +305,7 @@ function startTensorFlowClassification() {
         const features = extractMFCCFeatures(buffer, audioContext.sampleRate);
         
         // Convert to tensor and make prediction
-        const inputTensor = tf.tensor3d([features], [1, 43, 232, 1]);
+        const inputTensor = tf.tensor3d([features], [1, 20, 20, 1]);
         const prediction = tfModel.predict(inputTensor);
         const results = prediction.arraySync()[0];
         
