@@ -95,14 +95,35 @@ async function main() {
     console.log('\nStarting batch recording...');
     console.log('Press Ctrl+C at any time to cancel.\n');
     
-    // Record each sample immediately without pauses
+    // Track time for periodic pauses
+    let startTime = Date.now();
+    let lastPauseTime = startTime;
+    
+    // Record each sample with periodic pauses
     for (let i = 0; i < count; i++) {
       const currentIndex = startIndex + i;
       
       console.log(`\n[${i + 1}/${count}] Recording sample ${currentIndex} for "${label}"...`);
-      console.log('Recording immediately...');
       
-      // Execute recording command immediately
+      // Check if we need to pause (every 10 seconds)
+      const currentTime = Date.now();
+      const elapsedSinceLastPause = (currentTime - lastPauseTime) / 1000; // in seconds
+      
+      if (elapsedSinceLastPause >= 10 && i > 0) {
+        console.log('Pausing for 3 seconds...');
+        
+        // Visual countdown from 3 to 0
+        for (let countdown = 3; countdown >= 0; countdown--) {
+          process.stdout.write(`\rCountdown: ${countdown}...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        process.stdout.write('\r' + ' '.repeat(20) + '\r'); // Clear line
+        
+        lastPauseTime = Date.now();
+        console.log('Resuming recording...');
+      }
+      
+      // Execute recording command
       const command = `node "${path.join(__dirname, 'record.js')}" --label "${label}" --index "${currentIndex}" --duration "${duration}"`;
       
       await new Promise((resolve, reject) => {
@@ -116,8 +137,6 @@ async function main() {
           }
         });
       });
-      
-      // No pause between recordings
     }
     
     console.log('\n' + '='.repeat(60));
