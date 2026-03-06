@@ -98,9 +98,9 @@ def create_fast_cnn_model(input_shape, num_classes):
     
     # Dense layers with dropout
     x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.3)(x)
+    x = layers.Dropout(0.5)(x)
     x = layers.Dense(64, activation='relu')(x)
-    x = layers.Dropout(0.3)(x)
+    x = layers.Dropout(0.5)(x)
     
     # Output layer
     outputs = layers.Dense(num_classes, activation='softmax')(x)
@@ -159,9 +159,17 @@ def train_model(config, use_fast_model=True):
     
     X = reshape_features(features, input_shape)
     y = keras.utils.to_categorical(labels, config['model']['outputClasses'])
-    
+
     print(f"X shape: {X.shape}")
     print(f"y shape: {y.shape}")
+
+    # 🔀 IMPORTANT: shuffle dataset BEFORE validation split
+    indices = np.arange(len(X))
+    np.random.shuffle(indices)
+
+    X = X[indices]
+    y = y[indices]
+    
     
     # Create model
     print("\nCreating optimized model...")

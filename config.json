@@ -6,7 +6,7 @@
     "threshold": 0
   },
   "features": {
-    "mfccCoefficients": 40,
+    "mfccCoefficients": 20,
     "bufferSize": 1024,
     "hopLength": 512,
     "windowFunction": "hann"
@@ -20,7 +20,7 @@
   },
   "labels": ["A", "E", "I", "O", "U", "noise"],
   "model": {
-    "inputShape": [43, 232, 1],
+    "inputShape": [20, 20, 1],
     "outputClasses": 6
   }
 }
