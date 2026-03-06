@@ -1,0 +1,2 @@
+$currentPath = (Get-Location).Path
+docker run --rm --entrypoint python -v "${currentPath}:/app" -v "${currentPath}/trained_python_fast:/app/trained_python_fast" -v "${currentPath}/trained_web:/app/trained_web" simple_vtuber-convert-tfjs convert_to_tfjs.py --input /app/trained_python_fast/model.h5 --output /app/trained_web/tfjs_model
