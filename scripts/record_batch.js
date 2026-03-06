@@ -95,21 +95,23 @@ async function main() {
     console.log('\nStarting batch recording...');
     console.log('Press Ctrl+C at any time to cancel.\n');
     
-    // Track time for periodic pauses
-    let startTime = Date.now();
-    let lastPauseTime = startTime;
+    // Show initial countdown before first recording
+    console.log('Starting in 3 seconds...');
+    for (let countdown = 3; countdown >= 0; countdown--) {
+      process.stdout.write(`\rCountdown: ${countdown}...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    process.stdout.write('\r' + ' '.repeat(20) + '\r'); // Clear line
+    console.log('Starting recordings...\n');
     
-    // Record each sample with periodic pauses
+    // Record each sample with periodic pauses every 10 samples
     for (let i = 0; i < count; i++) {
       const currentIndex = startIndex + i;
       
       console.log(`\n[${i + 1}/${count}] Recording sample ${currentIndex} for "${label}"...`);
       
-      // Check if we need to pause (every 10 seconds)
-      const currentTime = Date.now();
-      const elapsedSinceLastPause = (currentTime - lastPauseTime) / 1000; // in seconds
-      
-      if (elapsedSinceLastPause >= 10 && i > 0) {
+      // Check if we need to pause (every 10 samples, starting from sample 0)
+      if (i % 10 === 0 && i > 0) {
         console.log('Pausing for 3 seconds...');
         
         // Visual countdown from 3 to 0
@@ -119,7 +121,6 @@ async function main() {
         }
         process.stdout.write('\r' + ' '.repeat(20) + '\r'); // Clear line
         
-        lastPauseTime = Date.now();
         console.log('Resuming recording...');
       }
       
