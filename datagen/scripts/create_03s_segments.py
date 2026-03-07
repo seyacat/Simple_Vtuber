@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""
+Script para crear segmentos de exactamente 0.3 segundos a partir de audio recortado.
+Si el audio es más corto, lo rellena con silencio.
+Si es más largo, extrae el segmento central de 0.3 segundos.
+"""
+
+import os
+import sys
+from pathlib import Path
+import numpy as np
+
+try:
+    import soundfile as sf
+except ImportError:
+    print("ERROR: soundfile no está instalado.")
+    print("Instalar con: pip install soundfile")
+    sys.exit(1)
+
+def create_03s_segment(audio_data, sample_rate, target_duration=0.3):
+    """
+    Crea un segmento de exactamente target_duration segundos.
+    
+    Args:
+        audio_data: Array de numpy con datos de audio
+        sample_rate: Tasa de muestreo
+        target_duration: Duración objetivo en segundos (default: 0.3)
+        
+    Returns:
+        Segmento de audio de exactamente target_duration segundos
+    """
+    # Convertir a mono si es estéreo
+    if len(audio_data.shape) > 1:
+        audio_data = np.mean(audio_data, axis=1)
+    
+    # Calcular muestras objetivo
+    target_samples = int(target_duration * sample_rate)
+    
+    # Si el audio es exactamente del tamaño objetivo, devolverlo
+    if len(audio_data) == target_samples:
+        return audio_data
+    
+    # Si el audio es más corto, rellenar con silencio
+    if len(audio_data) < target_samples:
+        padding = target_samples - len(audio_data)
+        # Dividir padding entre inicio y final
+        pad_start = padding // 2
+        pad_end = padding - pad_start
+        
+        # Rellenar con ceros (silencio)
+        padded_audio = np.pad(audio_data, (pad_start, pad_end), mode='constant')
+        return padded_audio
+    
+    # Si el audio es más largo, extraer segmento central
+    if len(audio_data) > target_samples:
+        start_idx = (len(audio_data) - target_samples) // 2
+        end_idx = start_idx + target_samples
+        return audio_data[start_idx:end_idx]
+
+def process_audio_file(input_path, output_path, target_duration=0.3, target_sr=16000):
+    """
+    Procesa un archivo de audio: crea segmento de 0.3s y re-muestrea a 16kHz.
+    
+    Args:
+        input_path: Ruta al archivo de entrada
+        output_path: Ruta al archivo de salida
+        target_duration: Duración objetivo en segundos
+        target_sr: Tasa de muestreo objetivo
+        
+    Returns:
+        Tupla (duración_entrada, duración_salida, éxito)
+    """
+    try:
+        # Cargar audio
+        audio_data, original_sr = sf.read(str(input_path))
+        
+        # Calcular duración original
+        original_duration = len(audio_data) / original_sr
+        
+        # Crear segmento de 0.3s a la tasa de muestreo original
+        segment = create_03s_segment(audio_data, original_sr, target_duration)
+        
+        # Re-muestrear a 16kHz si es necesario
+        if original_sr != target_sr:
+            # Calcular factor de re-muestreo
+            from scipy import signal
+            segment = signal.resample(segment, int(len(segment) * target_sr / original_sr))
+        
+        # Calcular duración final
+        final_duration = len(segment) / target_sr
+        
+        # Guardar audio
+        sf.write(str(output_path), segment, target_sr, subtype='PCM_16')
+        
+        return original_duration, final_duration, True
+        
+    except Exception as e:
+        print(f"  ❌ Error procesando {input_path.name}: {e}")
+        return 0, 0, False
+
+def main():
+    """Función principal."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Crear segmentos de 0.3 segundos')
+    parser.add_argument('--input-dir', type=str, default='datagen/trimmed_audio',
+                       help='Directorio con archivos de audio recortados')
+    parser.add_argument('--output-dir', type=str, default='datagen/03s_segments',
+                       help='Directorio para segmentos de 0.3s')
+    parser.add_argument('--duration', type=float, default=0.3,
+                       help='Duración objetivo en segundos (default: 0.3)')
+    parser.add_argument('--sample-rate', type=int, default=16000,
+                       help='Tasa de muestreo objetivo (default: 16000)')
+    parser.add_argument('--test', action='store_true',
+                       help='Modo prueba (procesa solo 5 archivos)')
+    
+    args = parser.parse_args()
+    
+    print("=" * 60)
+    print("CREADOR DE SEGMENTOS DE 0.3 SEGUNDOS")
+    print("=" * 60)
+    
+    # Configurar directorios
+    input_dir = Path(args.input_dir)
+    output_dir = Path(args.output_dir)
+    
+    if not input_dir.exists():
+        print(f"❌ Directorio de entrada no existe: {input_dir}")
+        print(f"   Ejecuta primero: python trim_silence.py")
+        return 1
+    
+    # Crear directorio de salida
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Encontrar archivos de audio
+    audio_files = list(input_dir.glob("*.wav"))
+    
+    if not audio_files:
+        print(f"❌ No se encontraron archivos .wav en {input_dir}")
+        return 1
+    
+    print(f"Archivos encontrados: {len(audio_files)}")
+    print(f"Directorio de entrada: {input_dir}")
+    print(f"Directorio de salida: {output_dir}")
+    print(f"Duración objetivo: {args.duration}s")
+    print(f"Tasa de muestreo objetivo: {args.sample_rate} Hz")
+    
+    if args.test:
+        audio_files = audio_files[:5]
+        print(f"⚠️  MODO PRUEBA: Procesando solo {len(audio_files)} archivos")
+    
+    print("\n" + "-" * 60)
+    
+    # Procesar archivos
+    successful = 0
+    
+    for i, input_file in enumerate(audio_files, 1):
+        # Crear nombre de archivo de salida (mantener mismo nombre)
+        output_file = output_dir / input_file.name
+        
+        print(f"[{i}/{len(audio_files)}] Procesando: {input_file.name}")
+        
+        # Procesar archivo
+        orig_dur, final_dur, success = process_audio_file(
+            input_file, output_file, args.duration, args.sample_rate
+        )
+        
+        if success:
+            diff = final_dur - args.duration
+            diff_ms = diff * 1000  # Convertir a milisegundos
+            
+            if abs(diff) < 0.001:  # 1ms de tolerancia
+                print(f"  ✅ Exacto: {orig_dur:.3f}s → {final_dur:.3f}s")
+            elif diff > 0:
+                print(f"  ⚠️  Largo: {orig_dur:.3f}s → {final_dur:.3f}s (+{diff_ms:.1f}ms)")
+            else:
+                print(f"  ⚠️  Corto: {orig_dur:.3f}s → {final_dur:.3f}s ({diff_ms:.1f}ms)")
+            
+            successful += 1
+        else:
+            print(f"  ❌ Error procesando archivo")
+    
+    # Resumen
+    print("\n" + "=" * 60)
+    print("RESUMEN")
+    print("=" * 60)
+    
+    print(f"Archivos procesados: {successful}/{len(audio_files)}")
+    
+    if successful > 0:
+        # Verificar duraciones de los archivos generados
+        print(f"\nVerificando duraciones de archivos generados:")
+        
+        output_files = list(output_dir.glob("*.wav"))
+        durations = []
+        
+        for file in output_files[:5]:  # Mostrar primeros 5
+            try:
+                data, sr = sf.read(str(file))
+                duration = len(data) / sr
+                durations.append(duration)
+                print(f"  {file.name}: {duration:.6f}s ({len(data)} muestras a {sr} Hz)")
+            except Exception as e:
+                print(f"  ❌ Error leyendo {file.name}: {e}")
+        
+        if durations:
+            avg_duration = np.mean(durations)
+            min_duration = np.min(durations)
+            max_duration = np.max(durations)
+            
+            print(f"\nEstadísticas (primeros {len(durations)} archivos):")
+            print(f"  Mínima: {min_duration:.6f}s")
+            print(f"  Máxima: {max_duration:.6f}s")
+            print(f"  Promedio: {avg_duration:.6f}s")
+            print(f"  Desviación del objetivo ({args.duration}s): {abs(avg_duration - args.duration)*1000:.2f}ms")
+    
+    print(f"\n✅ Segmentos de {args.duration}s guardados en: {output_dir}")
+    
+    return 0
+
+if __name__ == "__main__":
+    try:
+        exit_code = main()
+        exit(exit_code)
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
