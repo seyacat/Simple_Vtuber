@@ -22,27 +22,64 @@ except ImportError:
 class EdgeTTSGenerator:
     """Generador de audio usando Edge TTS."""
     
-    def __init__(self, base_dir="datagen", voice_name="es-ES-ElviraNeural"):
+    def __init__(self, base_dir="datagen", voice_name=None, use_all_spanish_voices=False):
         """
         Inicializa el generador Edge TTS.
         
         Args:
             base_dir: Directorio base del proyecto
             voice_name: Nombre de la voz a usar (ej: "es-ES-ElviraNeural")
+            use_all_spanish_voices: Si es True, usa todas las voces en español disponibles
         """
         self.base_dir = Path(base_dir)
         self.raw_audio_dir = self.base_dir / "raw_audio_edge"
         self.raw_audio_dir.mkdir(parents=True, exist_ok=True)
         
-        # Configurar voz
-        self.voice_name = voice_name
-        print(f"Voz seleccionada: {self.voice_name}")
+        # Obtener voces disponibles
+        self.spanish_voices = self._get_spanish_voices()
+        
+        # Configurar voz/voces
+        self.use_all_spanish_voices = use_all_spanish_voices
+        if use_all_spanish_voices:
+            print(f"Usando TODAS las voces en español: {len(self.spanish_voices)} voces")
+            self.voice_name = None  # Se rotará entre voces
+        else:
+            self.voice_name = voice_name or "es-ES-ElviraNeural"
+            print(f"Voz seleccionada: {self.voice_name}")
         
         # Configurar parámetros
         self.rate = "+0%"  # Velocidad normal
         self.volume = "+0%"  # Volumen normal
+    
+    def _get_spanish_voices(self):
+        """Obtiene todas las voces en español disponibles en Edge TTS."""
+        try:
+            import edge_tts
+            voices = edge_tts.list_voices()
+            spanish_voices = [
+                voice for voice in voices
+                if voice['Locale'].startswith('es-') and 'Neural' in voice['ShortName']
+            ]
+            # Ordenar por nombre
+            spanish_voices.sort(key=lambda x: x['ShortName'])
+            return spanish_voices
+        except Exception as e:
+            print(f"Error obteniendo voces: {e}")
+            # Voces por defecto si falla
+            return [
+                {'ShortName': 'es-ES-AlvaroNeural', 'Locale': 'es-ES', 'Gender': 'Male'},
+                {'ShortName': 'es-ES-ElviraNeural', 'Locale': 'es-ES', 'Gender': 'Female'},
+                {'ShortName': 'es-MX-DaliaNeural', 'Locale': 'es-MX', 'Gender': 'Female'},
+                {'ShortName': 'es-MX-JorgeNeural', 'Locale': 'es-MX', 'Gender': 'Male'},
+                {'ShortName': 'es-AR-ElenaNeural', 'Locale': 'es-AR', 'Gender': 'Female'},
+                {'ShortName': 'es-AR-TomasNeural', 'Locale': 'es-AR', 'Gender': 'Male'},
+                {'ShortName': 'es-CL-CatalinaNeural', 'Locale': 'es-CL', 'Gender': 'Female'},
+                {'ShortName': 'es-CL-LorenzoNeural', 'Locale': 'es-CL', 'Gender': 'Male'},
+                {'ShortName': 'es-CO-GonzaloNeural', 'Locale': 'es-CO', 'Gender': 'Male'},
+                {'ShortName': 'es-CO-SalomeNeural', 'Locale': 'es-CO', 'Gender': 'Female'},
+            ]
         
-    async def text_to_wav_async(self, text, filename, sample_rate=16000):
+    async def text_to_wav_async(self, text, filename, sample_rate=16000, voice_name=None):
         """
         Convierte texto a archivo WAV usando Edge TTS (async).
         
@@ -50,15 +87,24 @@ class EdgeTTSGenerator:
             text: Texto a sintetizar
             filename: Nombre del archivo de salida (sin extensión)
             sample_rate: Tasa de muestreo deseada (Hz)
+            voice_name: Nombre de la voz a usar (None = usar la voz por defecto o rotar)
             
         Returns:
             Ruta al archivo generado o None si hay error
         """
         try:
+            # Determinar qué voz usar
+            if voice_name is None:
+                if self.use_all_spanish_voices:
+                    # Rotar entre voces - usar la primera disponible
+                    voice_name = self.spanish_voices[0]['ShortName']
+                else:
+                    voice_name = self.voice_name
+            
             # Crear communicator
             communicate = edge_tts.Communicate(
                 text=text,
-                voice=self.voice_name,
+                voice=voice_name,
                 rate=self.rate,
                 volume=self.volume
             )
@@ -74,7 +120,7 @@ class EdgeTTSGenerator:
             return output_path
             
         except Exception as e:
-            print(f"  ❌ Error generando audio: {e}")
+            print(f"  ❌ Error generando audio con voz {voice_name}: {e}")
             return None
     
     def text_to_wav(self, text, filename, sample_rate=16000):
@@ -93,7 +139,8 @@ class EdgeTTSGenerator:
     
     async def process_vocal_file_async(self, vocal, text_file_path, max_items=None):
         """
-        Procesa un archivo de texto de una vocal (async).
+        Procesa un archivo de texto de una vocal (async) con procesamiento paralelo.
+        Si use_all_spanish_voices es True, distribuye los segmentos entre todas las voces.
         
         Args:
             vocal: Vocal ('A', 'E', 'I', 'O', 'U')
@@ -118,29 +165,75 @@ class EdgeTTSGenerator:
         
         print(f"  Segmentos a procesar: {len(segments)}")
         
+        # Si estamos usando todas las voces, mostrar información
+        if self.use_all_spanish_voices:
+            print(f"  Distribuyendo entre {len(self.spanish_voices)} voces en español")
+        
         generated_files = []
         
-        for i, segment in enumerate(segments, 1):
-            # Crear nombre de archivo seguro
+        # Función para procesar un segmento individual
+        async def process_segment(segment, index, total, voice_index=None):
+            # Crear nombre de archivo único con milisegundos
             safe_segment = segment.replace(' ', '_').replace('.', '')
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{vocal}_{safe_segment}_{timestamp}"
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Incluye milisegundos
             
-            print(f"  [{i}/{len(segments)}] Segmento: '{segment}'")
+            # Determinar qué voz usar
+            voice_name = None
+            if self.use_all_spanish_voices and voice_index is not None:
+                voice_idx = voice_index % len(self.spanish_voices)
+                voice_name = self.spanish_voices[voice_idx]['ShortName']
+                filename = f"{vocal}_{safe_segment}_{voice_idx:02d}_{timestamp}"
+                voice_info = f" (voz: {voice_name.split('-')[-1]})"
+            else:
+                filename = f"{vocal}_{safe_segment}_{timestamp}"
+                voice_info = ""
+            
+            print(f"  [{index}/{total}] Segmento: '{segment}'{voice_info}")
             print(f"  Generando: '{segment}...' -> {filename}.wav")
             
             # Generar audio
-            output_path = await self.text_to_wav_async(segment, filename)
+            output_path = await self.text_to_wav_async(segment, filename, voice_name=voice_name)
             
             if output_path and output_path.exists():
-                print(f"  ✅ Archivo creado: {output_path.name}")
-                generated_files.append(str(output_path))
+                print(f"  ✅ [{index}/{total}] Archivo creado: {output_path.name}")
+                return str(output_path)
             else:
-                print(f"  ❌ Error creando archivo para: {segment}")
+                print(f"  ❌ [{index}/{total}] Error creando archivo para: {segment}")
+                return None
+        
+        # Procesar en lotes de 10 (paralelo simultáneo)
+        batch_size = 10
+        total_segments = len(segments)
+        
+        generated_files = []
+        
+        # Procesar por lotes
+        for batch_start in range(0, total_segments, batch_size):
+            batch_end = min(batch_start + batch_size, total_segments)
+            current_batch = segments[batch_start:batch_end]
+            batch_number = (batch_start // batch_size) + 1
+            total_batches = (total_segments + batch_size - 1) // batch_size
             
-            # Pequeña pausa para evitar sobrecargar el servicio
-            if i < len(segments):
-                await asyncio.sleep(0.1)
+            print(f"\n  --- Lote {batch_number}/{total_batches} ({len(current_batch)} segmentos) ---")
+            
+            # Crear y ejecutar tareas para el lote actual simultáneamente
+            tasks = []
+            for i, segment in enumerate(current_batch, 1):
+                global_index = batch_start + i
+                # Calcular índice de voz para distribuir entre todas las voces
+                voice_index = global_index - 1 if self.use_all_spanish_voices else None
+                task = process_segment(segment, global_index, total_segments, voice_index)
+                tasks.append(task)
+            
+            # Ejecutar todas las tareas del lote simultáneamente
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Procesar resultados
+            for result in batch_results:
+                if isinstance(result, Exception):
+                    print(f"  ❌ Error en tarea: {result}")
+                elif result is not None:
+                    generated_files.append(result)
         
         return generated_files
     
@@ -220,8 +313,10 @@ def main():
     
     parser = argparse.ArgumentParser(description='Generar audio usando Edge TTS')
     parser.add_argument('--test', action='store_true', help='Modo prueba (5 segmentos por vocal)')
-    parser.add_argument('--voice', type=str, default='es-ES-ElviraNeural', 
+    parser.add_argument('--voice', type=str, default='es-ES-ElviraNeural',
                        help='Nombre de la voz Edge TTS (ej: es-ES-ElviraNeural)')
+    parser.add_argument('--use-all-voices', action='store_true',
+                       help='Usar todas las voces en español disponibles (45 voces)')
     parser.add_argument('--max-items', type=int, default=None,
                        help='Máximo número de segmentos por vocal')
     
@@ -231,8 +326,23 @@ def main():
     print("SCRIPT 02: GENERACIÓN DE AUDIO CON EDGE TTS")
     print("=" * 60)
     
+    # Obtener directorio base (datagen/) relativo al script
+    script_dir = Path(__file__).parent
+    base_dir = script_dir.parent  # datagen/
+    
     # Inicializar generador
-    generator = EdgeTTSGenerator(voice_name=args.voice)
+    generator = EdgeTTSGenerator(
+        base_dir=base_dir,
+        voice_name=args.voice,
+        use_all_spanish_voices=args.use_all_voices
+    )
+    
+    # Mostrar información de voces
+    if args.use_all_voices:
+        print(f"✅ Usando TODAS las voces en español ({len(generator.spanish_voices)} voces)")
+        print("  Las voces se distribuirán entre los segmentos de forma rotativa")
+    else:
+        print(f"✅ Usando voz específica: {args.voice}")
     
     # Procesar todas las vocales
     results = generator.process_all_vocals(
@@ -244,6 +354,8 @@ def main():
     metadata = {
         'fecha_generacion': datetime.now().isoformat(),
         'voz_utilizada': args.voice,
+        'uso_todas_las_voces': args.use_all_voices,
+        'total_voces_disponibles': len(generator.spanish_voices) if args.use_all_voices else 1,
         'modo_prueba': args.test,
         'total_archivos_generados': sum(len(files) for files in results.values()),
         'archivos_por_vocal': {vocal: len(files) for vocal, files in results.items()},

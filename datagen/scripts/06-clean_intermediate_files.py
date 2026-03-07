@@ -118,8 +118,8 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Limpiar archivos intermedios del proceso de audio')
-    parser.add_argument('--base-dir', type=str, default='datagen',
-                       help='Directorio base del proyecto (default: datagen)')
+    parser.add_argument('--base-dir', type=str, default='.',
+                       help='Directorio base del proyecto (default: directorio actual)')
     parser.add_argument('--remove-final', action='store_true',
                        help='Eliminar también el dataset final (03s_segments)')
     parser.add_argument('--dry-run', action='store_true',
@@ -133,7 +133,9 @@ def main():
         print("=" * 60)
         print("\nSe eliminarían los siguientes directorios y archivos:")
         
-        base_path = Path(args.base_dir)
+        # Obtener directorio base relativo al script
+        script_dir = Path(__file__).parent
+        base_path = script_dir.parent / args.base_dir  # datagen/ + base_dir
         
         # Directorios a eliminar
         dirs_to_remove = [
@@ -179,9 +181,13 @@ def main():
         print(f"\n⚠️  Esta es una simulación. Use --dry-run false para ejecutar.")
         return 0
     
+    # Obtener directorio base relativo al script
+    script_dir = Path(__file__).parent
+    base_path = script_dir.parent / args.base_dir  # datagen/ + base_dir
+    
     # Ejecutar limpieza real
     results = clean_intermediate_files(
-        base_dir=args.base_dir,
+        base_dir=str(base_path),
         keep_final=not args.remove_final
     )
     

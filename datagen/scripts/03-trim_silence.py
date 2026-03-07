@@ -116,10 +116,10 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Recortar silencios de archivos de audio')
-    parser.add_argument('--input-dir', type=str, default='datagen/raw_audio_edge',
-                       help='Directorio con archivos de audio de entrada')
-    parser.add_argument('--output-dir', type=str, default='datagen/trimmed_audio',
-                       help='Directorio para archivos recortados')
+    parser.add_argument('--input-dir', type=str, default='raw_audio_edge',
+                       help='Directorio con archivos de audio de entrada (relativo a datagen/)')
+    parser.add_argument('--output-dir', type=str, default='trimmed_audio',
+                       help='Directorio para archivos recortados (relativo a datagen/)')
     parser.add_argument('--threshold', type=float, default=-40,
                        help='Umbral en dB para considerar silencio (default: -40)')
     parser.add_argument('--test', action='store_true',
@@ -131,9 +131,13 @@ def main():
     print("RECORTADOR DE SILENCIOS DE AUDIO")
     print("=" * 60)
     
-    # Configurar directorios
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
+    # Obtener directorio base (datagen/) relativo al script
+    script_dir = Path(__file__).parent
+    base_dir = script_dir.parent  # datagen/
+    
+    # Configurar directorios relativos a datagen/
+    input_dir = base_dir / args.input_dir
+    output_dir = base_dir / args.output_dir
     
     if not input_dir.exists():
         print(f"❌ Directorio de entrada no existe: {input_dir}")

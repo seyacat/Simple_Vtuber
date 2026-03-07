@@ -118,10 +118,10 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Crear segmentos de 0.3 segundos')
-    parser.add_argument('--input-dir', type=str, default='datagen/trimmed_audio',
-                       help='Directorio con archivos de audio recortados')
-    parser.add_argument('--output-dir', type=str, default='datagen/03s_segments',
-                       help='Directorio para segmentos de 0.3s')
+    parser.add_argument('--input-dir', type=str, default='filtered_audio',
+                       help='Directorio con archivos de audio filtrados (relativo a datagen/)')
+    parser.add_argument('--output-dir', type=str, default='03s_segments',
+                       help='Directorio para segmentos de 0.3s (relativo a datagen/)')
     parser.add_argument('--duration', type=float, default=0.3,
                        help='Duración objetivo en segundos (default: 0.3)')
     parser.add_argument('--sample-rate', type=int, default=16000,
@@ -135,9 +135,13 @@ def main():
     print("CREADOR DE SEGMENTOS DE 0.3 SEGUNDOS")
     print("=" * 60)
     
-    # Configurar directorios
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
+    # Obtener directorio base (datagen/) relativo al script
+    script_dir = Path(__file__).parent
+    base_dir = script_dir.parent  # datagen/
+    
+    # Configurar directorios relativos a datagen/
+    input_dir = base_dir / args.input_dir
+    output_dir = base_dir / args.output_dir
     
     if not input_dir.exists():
         print(f"❌ Directorio de entrada no existe: {input_dir}")

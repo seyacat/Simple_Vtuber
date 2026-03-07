@@ -48,14 +48,14 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Filtrar archivos de audio demasiado largos')
-    parser.add_argument('--input-dir', type=str, default='datagen/trimmed_audio',
-                       help='Directorio con archivos de audio recortados')
-    parser.add_argument('--output-dir', type=str, default='datagen/filtered_audio',
-                       help='Directorio para archivos filtrados')
+    parser.add_argument('--input-dir', type=str, default='trimmed_audio',
+                       help='Directorio con archivos de audio recortados (relativo a datagen/)')
+    parser.add_argument('--output-dir', type=str, default='filtered_audio',
+                       help='Directorio para archivos filtrados (relativo a datagen/)')
     parser.add_argument('--max-duration', type=float, default=0.4,
                        help='Duración máxima permitida para sílabas (default: 0.4s)')
-    parser.add_argument('--move-invalid', type=str, default='datagen/invalid_audio',
-                       help='Directorio para archivos inválidos (opcional)')
+    parser.add_argument('--move-invalid', type=str, default='invalid_audio',
+                       help='Directorio para archivos inválidos (opcional, relativo a datagen/)')
     parser.add_argument('--test', action='store_true',
                        help='Modo prueba (procesa solo 10 archivos)')
     
@@ -65,10 +65,14 @@ def main():
     print("FILTRADO DE AUDIO DEMASIADO LARGO")
     print("=" * 60)
     
-    # Configurar directorios
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
-    invalid_dir = Path(args.move_invalid) if args.move_invalid else None
+    # Obtener directorio base (datagen/) relativo al script
+    script_dir = Path(__file__).parent
+    base_dir = script_dir.parent  # datagen/
+    
+    # Configurar directorios relativos a datagen/
+    input_dir = base_dir / args.input_dir
+    output_dir = base_dir / args.output_dir
+    invalid_dir = base_dir / args.move_invalid if args.move_invalid else None
     
     if not input_dir.exists():
         print(f"❌ Directorio de entrada no existe: {input_dir}")
