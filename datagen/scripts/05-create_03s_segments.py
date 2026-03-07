@@ -57,18 +57,18 @@ def create_03s_segment(audio_data, sample_rate, target_duration=0.3):
         end_idx = start_idx + target_samples
         return audio_data[start_idx:end_idx]
 
-def process_audio_file(input_path, output_path, target_duration=0.3, target_sr=16000):
+def process_audio_file(input_path, output_dir, target_duration=0.3, target_sr=16000):
     """
-    Procesa un archivo de audio: crea segmento de 0.3s y re-muestrea a 16kHz.
+    Procesa un archivo de audio: crea segmento de 0.3s, re-muestrea a 16kHz y organiza por vocal.
     
     Args:
         input_path: Ruta al archivo de entrada
-        output_path: Ruta al archivo de salida
+        output_dir: Directorio base de salida
         target_duration: Duración objetivo en segundos
         target_sr: Tasa de muestreo objetivo
         
     Returns:
-        Tupla (duración_entrada, duración_salida, éxito)
+        Tupla (duración_entrada, duración_salida, vocal, éxito)
     """
     try:
         # Cargar audio
@@ -89,14 +89,29 @@ def process_audio_file(input_path, output_path, target_duration=0.3, target_sr=1
         # Calcular duración final
         final_duration = len(segment) / target_sr
         
+        # Determinar vocal del nombre del archivo (ej: "A_a_20260307_103004.wav" -> "A")
+        filename = input_path.name
+        vowel = 'unknown'
+        if '_' in filename:
+            parts = filename.split('_')
+            if parts[0] in ['A', 'E', 'I', 'O', 'U']:
+                vowel = parts[0]
+        
+        # Crear directorio para la vocal
+        vowel_dir = output_dir / vowel
+        vowel_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Crear nombre de archivo de salida (mantener nombre original)
+        output_path = vowel_dir / filename
+        
         # Guardar audio
         sf.write(str(output_path), segment, target_sr, subtype='PCM_16')
         
-        return original_duration, final_duration, True
+        return original_duration, final_duration, vowel, True
         
     except Exception as e:
         print(f"  ❌ Error procesando {input_path.name}: {e}")
-        return 0, 0, False
+        return 0, 0, 'unknown', False
 
 def main():
     """Función principal."""
@@ -153,16 +168,14 @@ def main():
     
     # Procesar archivos
     successful = 0
+    vowel_counts = {'A': 0, 'E': 0, 'I': 0, 'O': 0, 'U': 0, 'unknown': 0}
     
     for i, input_file in enumerate(audio_files, 1):
-        # Crear nombre de archivo de salida (mantener mismo nombre)
-        output_file = output_dir / input_file.name
-        
         print(f"[{i}/{len(audio_files)}] Procesando: {input_file.name}")
         
         # Procesar archivo
-        orig_dur, final_dur, success = process_audio_file(
-            input_file, output_file, args.duration, args.sample_rate
+        orig_dur, final_dur, vowel, success = process_audio_file(
+            input_file, output_dir, args.duration, args.sample_rate
         )
         
         if success:
@@ -170,13 +183,14 @@ def main():
             diff_ms = diff * 1000  # Convertir a milisegundos
             
             if abs(diff) < 0.001:  # 1ms de tolerancia
-                print(f"  ✅ Exacto: {orig_dur:.3f}s → {final_dur:.3f}s")
+                print(f"  ✅ {vowel}: {orig_dur:.3f}s → {final_dur:.3f}s")
             elif diff > 0:
-                print(f"  ⚠️  Largo: {orig_dur:.3f}s → {final_dur:.3f}s (+{diff_ms:.1f}ms)")
+                print(f"  ⚠️  {vowel} (largo): {orig_dur:.3f}s → {final_dur:.3f}s (+{diff_ms:.1f}ms)")
             else:
-                print(f"  ⚠️  Corto: {orig_dur:.3f}s → {final_dur:.3f}s ({diff_ms:.1f}ms)")
+                print(f"  ⚠️  {vowel} (corto): {orig_dur:.3f}s → {final_dur:.3f}s ({diff_ms:.1f}ms)")
             
             successful += 1
+            vowel_counts[vowel] = vowel_counts.get(vowel, 0) + 1
         else:
             print(f"  ❌ Error procesando archivo")
     
@@ -188,18 +202,42 @@ def main():
     print(f"Archivos procesados: {successful}/{len(audio_files)}")
     
     if successful > 0:
-        # Verificar duraciones de los archivos generados
-        print(f"\nVerificando duraciones de archivos generados:")
+        # Mostrar distribución por vocal
+        print(f"\nDistribución por vocal:")
+        for vowel in ['A', 'E', 'I', 'O', 'U', 'unknown']:
+            count = vowel_counts.get(vowel, 0)
+            if count > 0:
+                print(f"  {vowel}: {count} archivos")
         
-        output_files = list(output_dir.glob("*.wav"))
+        # Verificar duraciones y estructura de directorios
+        print(f"\nEstructura de directorios creada en {output_dir}:")
+        for vowel in ['A', 'E', 'I', 'O', 'U', 'unknown']:
+            vowel_dir = output_dir / vowel
+            if vowel_dir.exists():
+                vowel_files = list(vowel_dir.glob("*.wav"))
+                if vowel_files:
+                    # Verificar duración del primer archivo
+                    try:
+                        data, sr = sf.read(str(vowel_files[0]))
+                        duration = len(data) / sr
+                        print(f"  {vowel}/: {len(vowel_files)} archivos, ejemplo: {duration:.6f}s")
+                    except:
+                        print(f"  {vowel}/: {len(vowel_files)} archivos")
+        
+        # Verificar duraciones de algunos archivos
+        print(f"\nVerificando duraciones de archivos generados (primeros 3):")
+        all_files = []
+        for vowel_dir in output_dir.iterdir():
+            if vowel_dir.is_dir():
+                all_files.extend(list(vowel_dir.glob("*.wav")))
+        
         durations = []
-        
-        for file in output_files[:5]:  # Mostrar primeros 5
+        for file in all_files[:3]:  # Mostrar primeros 3
             try:
                 data, sr = sf.read(str(file))
                 duration = len(data) / sr
                 durations.append(duration)
-                print(f"  {file.name}: {duration:.6f}s ({len(data)} muestras a {sr} Hz)")
+                print(f"  {file.parent.name}/{file.name}: {duration:.6f}s ({len(data)} muestras a {sr} Hz)")
             except Exception as e:
                 print(f"  ❌ Error leyendo {file.name}: {e}")
         
@@ -214,7 +252,7 @@ def main():
             print(f"  Promedio: {avg_duration:.6f}s")
             print(f"  Desviación del objetivo ({args.duration}s): {abs(avg_duration - args.duration)*1000:.2f}ms")
     
-    print(f"\n✅ Segmentos de {args.duration}s guardados en: {output_dir}")
+    print(f"\n✅ Segmentos de {args.duration}s organizados por vocal en: {output_dir}")
     
     return 0
 
