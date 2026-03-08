@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script para filtrar y eliminar archivos de audio demasiado largos.
-Audio muy largo (> 0.4s para sílabas simples) probablemente está deletreado.
+Audio muy largo (> 0.3s para sílabas simples) probablemente está deletreado.
 """
 
 import os
@@ -16,7 +16,7 @@ except ImportError:
     print("Instalar con: pip install soundfile")
     sys.exit(1)
 
-def analyze_audio_duration(input_path, max_duration=0.32):
+def analyze_audio_duration(input_path, max_duration=0.3):
     """
     Analiza la duración de un archivo de audio.
     

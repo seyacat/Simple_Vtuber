@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Extracción de características MFCC usando Python (librosa).
+Extracción de espectrogramas MEL usando Python (librosa).
 Alternativa al script Node.js para entornos donde Node no está disponible.
 """
 
@@ -41,7 +41,7 @@ def get_audio_files():
     return audio_files
 
 def extract_mfcc(audio_path, config):
-    """Extraer características MFCC de un archivo de audio"""
+    """Extraer espectrograma MEL de un archivo de audio"""
     
     # Cargar audio
     try:
@@ -54,27 +54,21 @@ def extract_mfcc(audio_path, config):
     if len(audio.shape) > 1:
         audio = audio.mean(axis=1)
     
-    # Extraer MFCC
-    mfccs = librosa.feature.mfcc(
+    # Extraer espectrograma MEL (en lugar de MFCC)
+    mel_spectrogram = librosa.feature.melspectrogram(
         y=audio,
         sr=sr,
-        n_mfcc=config['features']['mfccCoefficients'],
+        n_mels=config['features']['melBands'],
         n_fft=config['features']['bufferSize'],
         hop_length=config['features']['hopLength'],
         window='hann'
     )
     
-    # Calcular delta y delta-delta
-    mfcc_delta = librosa.feature.delta(mfccs)
-    mfcc_delta2 = librosa.feature.delta(mfccs, order=2)
+    # Convertir a dB (log-mel)
+    mel_spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
     
-    # Concatenar características
-    features = np.vstack([mfccs, mfcc_delta, mfcc_delta2])
-    
-    # Aplanar a 1D
-    features_flat = features.flatten()
-    
-    return features_flat.tolist(), sr
+    # Retornar el espectrograma 2D sin aplanar
+    return mel_spectrogram_db.tolist(), sr
 
 def extract_all_features(config):
     """Extraer características de todos los archivos de audio"""
@@ -108,7 +102,7 @@ def extract_all_features(config):
     file_paths = []
     failed_files = []
     
-    print("\nExtrayendo características MFCC...")
+    print("\nExtrayendo espectrogramas MEL...")
     
     for file_info in tqdm(audio_files, desc="Procesando audio"):
         try:
@@ -191,14 +185,14 @@ def main():
     """Función principal"""
     
     print("=" * 60)
-    print("EXTRACCIÓN DE CARACTERÍSTICAS MFCC CON PYTHON")
+    print("EXTRACCIÓN DE ESPECTROGRAMAS MEL CON PYTHON")
     print("=" * 60)
     
     # Cargar configuración
     config = load_config()
     print(f"\nConfiguración cargada:")
     print(f"  Tasa de muestreo: {config['audio']['sampleRate']} Hz")
-    print(f"  Coeficientes MFCC: {config['features']['mfccCoefficients']}")
+    print(f"  Bandas MEL: {config['features']['melBands']}")
     print(f"  Etiquetas: {', '.join(config['labels'])}")
     
     # Extraer características

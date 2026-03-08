@@ -6,21 +6,22 @@
     "threshold": 0.02
   },
   "features": {
-    "melBands": 64,
+    "melBands": 96,
     "bufferSize": 400,
     "hopLength": 160,
-    "windowFunction": "hann"
+    "windowFunction": "hann",
+    "mfccCoefficients": 13
   },
   "training": {
-    "epochs": 80,
+    "epochs": 120,
     "batchSize": 32,
     "validationSplit": 0.2,
-    "learningRate": 0.0005,
-    "earlyStoppingPatience": 15
+    "learningRate": 0.0003,
+    "earlyStoppingPatience": 20
   },
   "labels": ["A", "E", "I", "O", "U", "noise"],
   "model": {
-    "inputShape": [64, 30, 1],
+    "inputShape": [96,30,1],
     "outputClasses": 6
   }
 }
