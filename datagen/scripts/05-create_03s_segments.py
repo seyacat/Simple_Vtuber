@@ -2,7 +2,7 @@
 """
 Script para crear segmentos de exactamente 0.3 segundos a partir de audio recortado.
 Si el audio es más corto, lo rellena con silencio.
-Si es más largo, extrae el segmento central de 0.3 segundos.
+Si es más largo, extrae los primeros 0.3 segundos.
 """
 
 import os
@@ -20,6 +20,8 @@ except ImportError:
 def create_03s_segment(audio_data, sample_rate, target_duration=0.3):
     """
     Crea un segmento de exactamente target_duration segundos.
+    - Si el audio es más corto: rellena con silencio al inicio y final
+    - Si el audio es más largo: toma los primeros target_duration segundos
     
     Args:
         audio_data: Array de numpy con datos de audio
@@ -51,11 +53,9 @@ def create_03s_segment(audio_data, sample_rate, target_duration=0.3):
         padded_audio = np.pad(audio_data, (pad_start, pad_end), mode='constant')
         return padded_audio
     
-    # Si el audio es más largo, extraer segmento central
+    # Si el audio es más largo, extraer primeros 0.3s
     if len(audio_data) > target_samples:
-        start_idx = (len(audio_data) - target_samples) // 2
-        end_idx = start_idx + target_samples
-        return audio_data[start_idx:end_idx]
+        return audio_data[:target_samples]
 
 def process_audio_file(input_path, output_dir, target_duration=0.3, target_sr=16000):
     """

@@ -2,3 +2,10 @@ node_modules
 dataset*
 certs
 logs
+datagen/raw_audio
+datagen/processed
+datagen/raw_audio_edge
+datagen/03s_segments
+datagen/trimmed_audio
+datagen/filtered_audio
+datagen/invalid_audio

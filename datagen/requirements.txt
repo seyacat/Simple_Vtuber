@@ -1,0 +1,25 @@
+# Dependencias para generación de dataset de audio con TTS de Windows
+# Instalar con: pip install -r requirements.txt
+
+# TTS de Windows
+comtypes>=1.1.14
+
+# Procesamiento de audio
+soundfile>=0.12.1
+librosa>=0.10.1
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Utilidades
+tqdm>=4.65.0  # Para barras de progreso (opcional)
+
+# Nota: pyaudio no es necesario para la versión actual que usa comtypes
+# Si prefieres usar pyaudio para captura de audio, instalar:
+# pip install pyaudio
+
+# Versiones probadas:
+# comtypes==1.1.14
+# soundfile==0.12.1
+# librosa==0.10.1
+# numpy==1.24.0
+# scipy==1.10.0

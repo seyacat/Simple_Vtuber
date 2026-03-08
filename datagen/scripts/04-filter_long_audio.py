@@ -16,7 +16,7 @@ except ImportError:
     print("Instalar con: pip install soundfile")
     sys.exit(1)
 
-def analyze_audio_duration(input_path, max_duration=0.4):
+def analyze_audio_duration(input_path, max_duration=0.32):
     """
     Analiza la duración de un archivo de audio.
     

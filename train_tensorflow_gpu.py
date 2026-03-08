@@ -81,17 +81,17 @@ def create_fast_cnn_model(input_shape, num_classes):
     # First block - optimized for speed
     x = layers.Conv2D(16, (3, 3), padding='same', activation='relu')(inputs)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
+    x = layers.MaxPooling2D((2, 1))(x)
     
     # Second block - depthwise separable convolution for efficiency
     x = layers.SeparableConv2D(32, (3, 3), padding='same', activation='relu')(x)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
+    x = layers.MaxPooling2D((2, 1))(x)
     
     # Third block
     x = layers.SeparableConv2D(64, (3, 3), padding='same', activation='relu')(x)
     x = layers.BatchNormalization()(x)
-    x = layers.MaxPooling2D((2, 2))(x)
+    x = layers.MaxPooling2D((2, 1))(x)
     
     # Global pooling instead of flatten for better performance
     x = layers.GlobalAveragePooling2D()(x)
@@ -115,11 +115,11 @@ def create_lightning_model(input_shape, num_classes):
     model = keras.Sequential([
         layers.Conv2D(8, (2, 8), padding='same', activation='relu', input_shape=input_shape),
         layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
+        layers.MaxPooling2D((2, 1)),
         
         layers.Conv2D(16, (2, 4), padding='same', activation='relu'),
         layers.BatchNormalization(),
-        layers.MaxPooling2D((2, 2)),
+        layers.MaxPooling2D((2, 1)),
         
         layers.Flatten(),
         layers.Dense(64, activation='relu'),

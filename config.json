@@ -1,26 +1,26 @@
 {
   "audio": {
     "sampleRate": 16000,
-    "duration": 0.1,
+    "duration": 0.3,
     "channels": 1,
-    "threshold": 0
+    "threshold": 0.02
   },
   "features": {
-    "mfccCoefficients": 20,
-    "bufferSize": 1024,
-    "hopLength": 512,
+    "melBands": 64,
+    "bufferSize": 400,
+    "hopLength": 160,
     "windowFunction": "hann"
   },
   "training": {
-    "epochs": 40,
+    "epochs": 80,
     "batchSize": 32,
     "validationSplit": 0.2,
-    "learningRate": 0.001,
-    "earlyStoppingPatience": 10
+    "learningRate": 0.0005,
+    "earlyStoppingPatience": 15
   },
   "labels": ["A", "E", "I", "O", "U", "noise"],
   "model": {
-    "inputShape": [20, 20, 1],
+    "inputShape": [64, 30, 1],
     "outputClasses": 6
   }
 }

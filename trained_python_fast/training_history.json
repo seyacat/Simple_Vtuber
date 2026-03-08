@@ -1,17 +1,17 @@
 {
-  "training_time": 27.460610389709473,
-  "epochs_trained": 19,
-  "final_loss": 0.0655345693230629,
-  "final_accuracy": 0.9904244542121887,
-  "final_val_loss": 0.04112132266163826,
-  "final_val_accuracy": 0.9937888383865356,
+  "training_time": 249.63209676742554,
+  "epochs_trained": 80,
+  "final_loss": 1.1303012371063232,
+  "final_accuracy": 0.5597217679023743,
+  "final_val_loss": 1.1110599040985107,
+  "final_val_accuracy": 0.5588874220848083,
   "config": {
-    "epochs": 40,
+    "epochs": 80,
     "batchSize": 32,
     "validationSplit": 0.2,
-    "learningRate": 0.001,
-    "earlyStoppingPatience": 10
+    "learningRate": 0.0005,
+    "earlyStoppingPatience": 15
   },
-  "timestamp": "2026-03-06T02:59:01.231595",
+  "timestamp": "2026-03-08T00:18:26.290371",
   "gpu_used": true
 }
