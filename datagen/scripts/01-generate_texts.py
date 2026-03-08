@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script para generar textos para cada vocal con todas las combinaciones de consonantes.
+Script para generar textos para cada vocal (solo vocales, sin combinaciones con consonantes).
 Genera un archivo por vocal (A.txt, E.txt, I.txt, O.txt, U.txt) en sus respectivas carpetas.
 """
 
@@ -23,18 +23,18 @@ VOCALES = ['A', 'E', 'I', 'O', 'U']
 
 def generar_combinaciones_por_vocal(vocal):
     """
-    Genera todas las combinaciones para una vocal específica.
+    Genera solo la vocal (sin combinaciones con consonantes).
     
     Args:
         vocal: Vocal en mayúscula ('A', 'E', 'I', 'O', 'U')
     
     Returns:
-        Lista de combinaciones para esa vocal
+        Lista con solo la vocal
     """
     vocal_lower = vocal.lower()
     combinaciones = []
     
-    # Vocal sola (sin consonante)
+    # Solo la vocal (sin consonante)
     combinaciones.append({
         'texto': vocal_lower,
         'consonante': '',
@@ -42,50 +42,6 @@ def generar_combinaciones_por_vocal(vocal):
         'tipo': 'vocal_sola',
         'direccion': 'vocal_sola'
     })
-    
-    # Combinaciones consonante + vocal (CV)
-    for consonante in CONSONANTES_ESPANOL:
-        texto = f"{consonante}{vocal_lower}"
-        combinaciones.append({
-            'texto': texto,
-            'consonante': consonante,
-            'vocal': vocal,
-            'tipo': 'cv',
-            'direccion': 'consonante_vocal'
-        })
-    
-    # Combinaciones vocal + consonante (VC)
-    for consonante in CONSONANTES_ESPANOL:
-        texto = f"{vocal_lower}{consonante}"
-        combinaciones.append({
-            'texto': texto,
-            'consonante': consonante,
-            'vocal': vocal,
-            'tipo': 'vc',
-            'direccion': 'vocal_consonante'
-        })
-    
-    # Combinaciones con dígrafos (CV)
-    for especial in COMBINACIONES_ESPECIALES:
-        texto = f"{especial}{vocal_lower}"
-        combinaciones.append({
-            'texto': texto,
-            'consonante': especial,
-            'vocal': vocal,
-            'tipo': 'especial_cv',
-            'direccion': 'consonante_vocal'
-        })
-    
-    # Combinaciones con dígrafos (VC)
-    for especial in COMBINACIONES_ESPECIALES:
-        texto = f"{vocal_lower}{especial}"
-        combinaciones.append({
-            'texto': texto,
-            'consonante': especial,
-            'vocal': vocal,
-            'tipo': 'especial_vc',
-            'direccion': 'vocal_consonante'
-        })
     
     return combinaciones
 
