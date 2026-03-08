@@ -3,19 +3,45 @@ const path = require("path");
 const Meyda = require("meyda");
 const wav = require("wav-decoder");
 
-const config = {
-  audio: {
-    sampleRate: 16000
-  },
-
-  features: {
-    bufferSize: 512,
-    hopSize: 256,
-    mfccCoefficients: 13
-  },
-
-  datasetPath: "./dataset"
-};
+// Cargar configuración desde config.json
+let config;
+try {
+  const configFile = fs.readFileSync("config.json", "utf8");
+  const configData = JSON.parse(configFile);
+  
+  config = {
+    audio: {
+      sampleRate: configData.audio.sampleRate || 16000
+    },
+    features: {
+      bufferSize: configData.features.bufferSize || 512,
+      hopSize: configData.features.hopLength || 256, // Nota: hopLength en config.json, hopSize en JS
+      mfccCoefficients: configData.features.mfccCoefficients || 13
+    },
+    datasetPath: "./dataset"
+  };
+  
+  console.log("Configuración cargada desde config.json:");
+  console.log(`  Sample rate: ${config.audio.sampleRate}`);
+  console.log(`  Buffer size: ${config.features.bufferSize}`);
+  console.log(`  Hop size: ${config.features.hopSize}`);
+  console.log(`  MFCC coefficients: ${config.features.mfccCoefficients}`);
+} catch (error) {
+  console.error("Error cargando config.json, usando valores por defecto:", error.message);
+  
+  // Valores por defecto
+  config = {
+    audio: {
+      sampleRate: 16000
+    },
+    features: {
+      bufferSize: 512,
+      hopSize: 256,
+      mfccCoefficients: 13
+    },
+    datasetPath: "./dataset"
+  };
+}
 
 async function loadWav(filePath) {
   const buffer = fs.readFileSync(filePath);

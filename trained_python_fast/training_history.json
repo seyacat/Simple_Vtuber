@@ -1,17 +1,9 @@
 {
-  "training_time": 263.6111080646515,
-  "epochs_trained": 85,
-  "final_loss": 0.9105983972549438,
-  "final_accuracy": 0.5995578169822693,
-  "final_val_loss": 0.8795297741889954,
-  "final_val_accuracy": 0.6105108261108398,
-  "config": {
-    "epochs": 120,
-    "batchSize": 32,
-    "validationSplit": 0.2,
-    "learningRate": 0.0003,
-    "earlyStoppingPatience": 20
-  },
-  "timestamp": "2026-03-08T02:28:09.585884",
-  "gpu_used": true
+  "training_time": 262.45360136032104,
+  "epochs_trained": 120,
+  "final_loss": 0.0001517755736131221,
+  "final_accuracy": 1.0,
+  "final_val_loss": 1.337181629423867e-06,
+  "final_val_accuracy": 1.0,
+  "timestamp": "2026-03-08T03:42:04.653785"
 }

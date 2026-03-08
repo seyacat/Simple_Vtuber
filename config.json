@@ -5,13 +5,20 @@
     "channels": 1,
     "threshold": 0.02
   },
+
   "features": {
-    "melBands": 96,
-    "bufferSize": 400,
+    "type": "melSpectrogram",
+    "melBands": 64,
+    "bufferSize": 512,
     "hopLength": 160,
-    "windowFunction": "hann",
-    "mfccCoefficients": 13
+    "windowFunction": "hann"
   },
+
+  "dataset": {
+    "normalize": true,
+    "shuffle": true
+  },
+
   "training": {
     "epochs": 120,
     "batchSize": 32,
@@ -19,9 +26,18 @@
     "learningRate": 0.0003,
     "earlyStoppingPatience": 20
   },
-  "labels": ["A", "E", "I", "O", "U", "noise"],
+
+  "labels": [
+    "A",
+    "E",
+    "I",
+    "O",
+    "U",
+    "noise"
+  ],
+
   "model": {
-    "inputShape": [96,30,1],
+    "inputShape": [64,30,1],
     "outputClasses": 6
   }
 }

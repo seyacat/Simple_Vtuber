@@ -6,6 +6,21 @@ const path = require('path');
 const wav = require('wav-encoder');
 const minimist = require('minimist');
 
+// Cargar configuración desde config.json
+let config;
+try {
+  const configFile = fs.readFileSync('config.json', 'utf8');
+  config = JSON.parse(configFile);
+  console.log(`Configuración cargada: sampleRate=${config.audio.sampleRate}Hz`);
+} catch (error) {
+  console.error('Error cargando config.json, usando valores por defecto:', error.message);
+  config = {
+    audio: {
+      sampleRate: 16000
+    }
+  };
+}
+
 // Parse command line arguments
 const argv = minimist(process.argv.slice(2), {
   string: ['label', 'index', 'duration'],
@@ -63,7 +78,7 @@ console.log(`Output file: ${outputFile}`);
 console.log('Press Ctrl+C to stop recording early');
 
 // Audio configuration
-const sampleRate = 16000;
+const sampleRate = config.audio.sampleRate;
 const channels = 1;
 const bytesPerSample = 2; // 16-bit = 2 bytes
 
