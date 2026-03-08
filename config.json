@@ -37,7 +37,7 @@
   ],
 
   "model": {
-    "inputShape": [64,30,1],
+    "inputShape": [64,31,1],
     "outputClasses": 6
   }
 }
